@@ -18,3 +18,12 @@ Make flags in C gay.
     - [ ] Char
     - [ ] Hexadecimal
 - [ ] Follow [IEEE](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html)
+
+
+## Var debug
+main.c: ^char
+Pass: ^^val
+opt.var: ^^val
+Pass: ^^val
+Modify: ^val -> ^buf
+opt.var: ^^nval

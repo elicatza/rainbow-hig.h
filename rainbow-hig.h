@@ -52,8 +52,8 @@ typedef struct {
     char *longarg;
     char shortarg;
     RHFlagType argtype;
-    void (*parse)(RHOpt *opt);
-    void **var;
+    void (*parse)(RHOpt *opt, void **var);
+    void *var;
 } RHFlag;
 
 /*
@@ -70,9 +70,9 @@ static inline bool rh__arg_is_null(RHFlag arg);
 extern char *rh_args_shift(int *argc, char ***argv);
 extern void rh_args_parse(int argc, char **argv, RHFlag *args);
 
-extern void rh_parser_str(RHOpt *opt);
-extern void rh_parser_bool(RHOpt *opt);
-extern void rh_action_help(RHOpt *opt);
+extern void rh_parser_str(RHOpt *opt, void **var);
+extern void rh_parser_bool(RHOpt *opt, void **var);
+extern void rh_action_help(RHOpt *opt, void **var);
 
 
 #ifdef RH_IMPLEMENTATION
@@ -102,7 +102,7 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
                 for (ip = arg + 1; *ip != '\0'; ++ip) {
                     printf("%c", *ip);
                     if (*ip == args[i].shortarg) {
-                        args[i].parse(&opt);
+                        args[i].parse(&opt, args[i].var);
                     } // TODO: else error message (invalid flag)
                 }
                 printf("\n");
@@ -113,7 +113,8 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
             if (arg[0] == '-' && arg[1] == '-') {
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
                     printf("Long flag: %s\n", args[i].longarg);
-                    args[i].parse(&opt);
+                    args[i].parse(&opt, args[i].var);
+                    printf("outstr: %s\n", (char *) *opt.var);
                     break;
                 }
                 continue;
@@ -127,27 +128,35 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
     } while (argc > 0);
 }
 
-extern void rh_parser_str(RHOpt *opt)
+extern void rh_parser_str(RHOpt *opt, void **var)
 {
     // TODO: Global variable or option for size
+    /*
     char buf[0x100];
     opt->optval = rh_args_shift(opt->argc, opt->argv);
     strncpy(buf, opt->optval, 0x100);
-    printf("instr: %s\n", opt->optval);
-    printf("instr: %s\n", buf);
-    *opt->var = (void *) &buf;
-    printf("instr: %s\n", (char *) &opt->var);
+    *opt->var = buf;
+    printf("instr: %s\n", (char *) *opt->var);
+    */
+
+    char buf[0x100];
+    opt->optval = rh_args_shift(opt->argc, opt->argv);
+    strncpy(buf, opt->optval, 0x100);
+    *var = buf;
+
 }
 
-extern void rh_parser_bool(RHOpt *opt)
-{
-    bool rt = 1;
-    *opt->var = (void *) &rt;
-}
-
-extern void rh_action_help(RHOpt *opt)
+extern void rh_parser_bool(RHOpt *opt, void **var)
 {
     (void) opt;
+    bool rt = 1;
+    *var = (void *) &rt;
+}
+
+extern void rh_action_help(RHOpt *opt, void **var)
+{
+    (void) opt;
+    (void) var;
 }
 
 extern char *rh_args_shift(int *argc, char ***argv)
