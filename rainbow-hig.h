@@ -41,9 +41,9 @@ typedef enum {
 } RHFlagType;
 
 typedef struct {
-    int argc;
-    char **argv;
-    void *var;
+    int *argc;
+    char ***argv;
+    void **var;
     unsigned int flag_type;
     char *optval;
 } RHOpt;
@@ -89,8 +89,8 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
         char *arg = rh_args_shift(&argc, &argv);
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
             RHOpt opt = {
-                .argc = argc,
-                .argv = argv,
+                .argc = &argc,
+                .argv = &argv,
                 .var = args[i].var,
                 .optval = arg,
                 .flag_type = args[i].argtype,
@@ -102,7 +102,7 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
                 for (ip = arg + 1; *ip != '\0'; ++ip) {
                     printf("%c", *ip);
                     if (*ip == args[i].shortarg) {
-                        args[i].parse(*opt);
+                        args[i].parse(&opt);
                     } // TODO: else error message (invalid flag)
                 }
                 printf("\n");
@@ -113,7 +113,7 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
             if (arg[0] == '-' && arg[1] == '-') {
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
                     printf("Long flag: %s\n", args[i].longarg);
-                    args[i].parse(&argc, &argv, args[i].var);
+                    args[i].parse(&opt);
                     break;
                 }
                 continue;
@@ -131,24 +131,23 @@ extern void rh_parser_str(RHOpt *opt)
 {
     // TODO: Global variable or option for size
     char buf[0x100];
-    char *tmp = rh_args_shift(argc, argv);
-    strncpy(buf, tmp, 0x100);
-    *var = buf;
+    opt->optval = rh_args_shift(opt->argc, opt->argv);
+    strncpy(buf, opt->optval, 0x100);
+    printf("instr: %s\n", opt->optval);
+    printf("instr: %s\n", buf);
+    *opt->var = (void *) &buf;
+    printf("instr: %s\n", (char *) &opt->var);
 }
 
 extern void rh_parser_bool(RHOpt *opt)
 {
-    (void) argc;
-    (void) argv;
     bool rt = 1;
-    *var = (void*) &rt;
+    *opt->var = (void *) &rt;
 }
 
 extern void rh_action_help(RHOpt *opt)
 {
-    (void) argc;
-    (void) argv;
-    (void) var;
+    (void) opt;
 }
 
 extern char *rh_args_shift(int *argc, char ***argv)
