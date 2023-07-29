@@ -143,7 +143,9 @@ extern void rh_parser_str(RHOpt *opt, void **var)
     char buf[0x100];
     opt->optval = rh_args_shift(opt->argc, opt->argv);
     strncpy(buf, opt->optval, 0x100);
-    *var = buf;
+    printf("buf: %s\n", buf);
+    *var = &buf;
+    printf("var: %s\n", (char *) *var);
 
 }
 
