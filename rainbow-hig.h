@@ -91,7 +91,8 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
             RHOpt opt = {
                 .argc = &argc,
                 .argv = &argv,
-                .var = args[i].var,
+                // .var = args[i].var,
+                .var = NULL,
                 .optval = arg,
                 .flag_type = args[i].argtype,
             };
@@ -114,7 +115,7 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args)
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
                     printf("Long flag: %s\n", args[i].longarg);
                     args[i].parse(&opt, args[i].var);
-                    printf("outstr: %s\n", (char *) *opt.var);
+                    printf("outstr: %s\n", (char *) args[i].var);
                     break;
                 }
                 continue;
