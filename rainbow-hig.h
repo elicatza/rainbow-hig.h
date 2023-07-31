@@ -263,30 +263,24 @@ extern void rh__gen_info_options(RHInfo *info, RHFlag *args)
 
             int optlen = rh__arg_len(args[i]);
 
+            char *fmt;
             if (rh__arg_is_short(args[i]) && rh__arg_is_long(args[i])) {
-                rv = snprintf(buf, 1000,
-                        "%*s\x1b[34m-%c, --%s\x1b[0m%*s%s\n",
-                        RH_INDENT_SPACES, "",
-                        args[i].shortarg, args[i].longarg,
-                        longestopt - optlen + RH_INDENT_SPACES, "",
-                        args[i].hint);
+                fmt = "%*s\x1b[34m-%c, --%s\x1b[0m%*s%s\n";
 
             } else if (rh__arg_is_short(args[i])) {
-                rv = snprintf(buf, 1000,
-                        "%*s\x1b[34m-%c\x1b[0m%*s%s\n",
-                        RH_INDENT_SPACES, "",
-                        args[i].shortarg,
-                        longestopt - optlen + RH_INDENT_SPACES, "",
-                        args[i].hint);
+                fmt = "%*s\x1b[34m-%c%s\x1b[0m%*s%s\n";
+
 
             } else if (rh__arg_is_long(args[i])) {
-                rv = snprintf(buf, 1000,
-                        "%*s\x1b[34m--%s\x1b[0m%*s%s\n",
-                        RH_INDENT_SPACES, "",
-                        args[i].longarg,
-                        longestopt - optlen + RH_INDENT_SPACES, "",
-                        args[i].hint);
+                fmt = "%*s\x1b[34m%c--%s\x1b[0m%*s%s\n";
             }
+
+            rv = snprintf(buf, 1000,
+                    fmt,
+                    RH_INDENT_SPACES, "",
+                    args[i].shortarg, args[i].longarg,
+                    longestopt - optlen + RH_INDENT_SPACES, "",
+                    args[i].hint);
             RH_ASSERT(rv >= 0 && rv != 1000);
             strcat(info->options, buf);
         }
