@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     // Warning no type checking for var. Could result in unexpected behaviour
     RHFlag sub_args[] = {
         { "help", 'h', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help, "Show this message and exit"  },
-        { "foo", 'f', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help,  "A boolean" },
+        { "foo",  'f', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help, "A boolean" },
         { RHARG_NULL }
     };
 
@@ -36,8 +36,8 @@ int main(int argc, char **argv)
     // Multiple args: <file>...Required
     RHFlag args[] = {
         { "help", 'h', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help, "Show this message and exit" },
-        { "str",  's', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Enter a string"  },
-        { "bar",  'b', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Another string"  },
+        { NULL,     's', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Enter a string"  },
+        { "bar",  0,   RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Another string"  },
         { "rec",  0  , RH_ARG_OPTIONAL, NULL,           (void *) &sub_args,      "recursive subcommand" },
         { RHARG_NULL }
     };

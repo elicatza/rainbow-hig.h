@@ -95,6 +95,7 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
 
             // Short flag
             if (arg[0] == '-' && arg[1] != '-') {
+                if (!rh__arg_is_short(args[i])) continue;
                 for (ip = arg + 1; *ip != '\0'; ++ip) {
                     if (*ip == args[i].shortarg) {
                         args[i].parse(opt);
@@ -105,6 +106,7 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
 
             // Long flag
             if (arg[0] == '-' && arg[1] == '-') {
+                if (!rh__arg_is_long(args[i])) continue;
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
                     args[i].parse(opt);
                     break;
@@ -113,8 +115,10 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
             }
 
             // Sub parser
-            if (!strcmp(arg, args[i].longarg) || (strlen(arg) == 1 && arg[0] == args[i].shortarg)) {
-                rh_args_parse(argc, argv, (RHFlag*) args[i].var, info);
+            if (rh__arg_is_subcommand(args[i])) {
+                if (!strcmp(arg, args[i].longarg) || (strlen(arg) == 1 && arg[0] == args[i].shortarg)) {
+                    rh_args_parse(argc, argv, (RHFlag*) args[i].var, info);
+                }
             }
         }
     } while (argc > 0);
@@ -170,7 +174,7 @@ static inline bool rh__arg_is_null(RHFlag arg)
 
 static inline bool rh__arg_is_subcommand(RHFlag arg)
 {
-    if (arg.parse == NULL && arg.var != NULL && arg.shortarg == 0) {
+    if (arg.parse == NULL && arg.var != NULL) {
         return true;
     }
     return false;
@@ -178,9 +182,8 @@ static inline bool rh__arg_is_subcommand(RHFlag arg)
 
 static inline bool rh__arg_is_long(RHFlag arg)
 {
-    if (arg.longarg == NULL) {
-        return false;
-    }
+    if (arg.longarg == NULL) return false;
+    if (strcmp(arg.longarg, "") == 0) return false;
     return true;
 }
 
@@ -200,9 +203,11 @@ static size_t rh__arg_len(RHFlag arg)
 
     size_t len = 0;
     if (arg.shortarg != 0) len += 2;
-    size_t longlen = strlen(arg.longarg);
-    if (longlen != 0) len += 2 + longlen;
-    if (arg.shortarg != 0 && longlen != 0) len += 2;
+    if (rh__arg_is_long(arg)) {
+        size_t longlen = strlen(arg.longarg);
+        if (longlen != 0) len += 2 + longlen;
+        if (arg.shortarg != 0 && longlen != 0) len += 2;
+    }
 
     return len;
 }
@@ -237,7 +242,10 @@ extern size_t rh__arg_len_longest_sub(RHFlag *args)
 
 extern void rh__gen_info_usage(RHInfo *info)
 {
-    int rv = snprintf(info->usage, 1000, "\x1b[35mUSAGE:\x1b[0m\n     %s [options]\n", info->program);
+    int rv = snprintf(info->usage, 1000,
+            "\x1b[35mUSAGE:\x1b[0m\n%*s%s [options]\n",
+            RH_INDENT_SPACES, "",
+            info->program);
     RH_ASSERT(rv >= 0);
     RH_ASSERT(rv != 1000);
 }
@@ -256,12 +264,27 @@ extern void rh__gen_info_options(RHInfo *info, RHFlag *args)
             if (rh__arg_is_subcommand(args[i])) continue;
 
             int optlen = rh__arg_len(args[i]);
-            printf("Longest: %d\t Cur: %d\n", longestopt, optlen);
+
             if (rh__arg_is_short(args[i]) && rh__arg_is_long(args[i])) {
                 rv = snprintf(buf, 1000,
-                         "%*s\x1b[34m-%c, --%s\x1b[0m%*s%s\n",
+                        "%*s\x1b[34m-%c, --%s\x1b[0m%*s%s\n",
+                        RH_INDENT_SPACES, "",
+                        args[i].shortarg, args[i].longarg,
+                        longestopt - optlen + RH_INDENT_SPACES, "",
+                        args[i].hint);
+
+            } else if (rh__arg_is_short(args[i])) {
+                rv = snprintf(buf, 1000,
+                        "%*s\x1b[34m-%c\x1b[0m%*s%s\n",
                         RH_INDENT_SPACES, "",
                         args[i].shortarg,
+                        longestopt - optlen + RH_INDENT_SPACES, "",
+                        args[i].hint);
+
+            } else if (rh__arg_is_long(args[i])) {
+                rv = snprintf(buf, 1000,
+                        "%*s\x1b[34m--%s\x1b[0m%*s%s\n",
+                        RH_INDENT_SPACES, "",
                         args[i].longarg,
                         longestopt - optlen + RH_INDENT_SPACES, "",
                         args[i].hint);
@@ -277,9 +300,13 @@ extern void rh__gen_info_options(RHInfo *info, RHFlag *args)
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
             if (!rh__arg_is_subcommand(args[i])) continue;
 
+            int sublen = rh__arg_len(args[i]);
             rv = snprintf(buf, 1000,
-                    "    %s\n",
-                    args[i].longarg);
+                    "%*s\x1b[34m%s\x1b[0m%*s%s\n",
+                    RH_INDENT_SPACES, "",
+                    args[i].longarg,
+                    longestsub - sublen + RH_INDENT_SPACES, "",
+                    args[i].hint);
             RH_ASSERT(rv >= 0 && rv != 1000);
             strcat(info->options, buf);
         }
@@ -291,8 +318,6 @@ extern void rh__gen_info(RHInfo *info, RHFlag *args)
     rh__gen_info_usage(info);
     // (void) args;
     rh__gen_info_options(info, args);
-    // printf("%s\n", info->usage);
-    // printf("%s\n", info->options);
 }
 
 
