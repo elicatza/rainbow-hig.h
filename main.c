@@ -37,7 +37,7 @@ int main(int argc, char **argv)
     RHFlag args[] = {
         { "help", 'h', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help, "Show this message and exit" },
         { NULL,     's', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Enter a string"  },
-        { "bar",  0,   RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Another string"  },
+        { "bar",  0,   RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  NULL},
         { "rec",  0  , RH_ARG_OPTIONAL, NULL,           (void *) &sub_args,      "recursive subcommand" },
         { RHARG_NULL }
     };
