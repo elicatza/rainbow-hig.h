@@ -2,7 +2,7 @@
 Rainbow High a header only command line flag parser library.
 
 ## Goal
-Make flags in C gay.
+Make flags in C gay, like the rainbow flag.
 
 ## Roadmap
 - [X] Basic functionality

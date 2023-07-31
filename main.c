@@ -21,25 +21,31 @@ Args args_init(void)
 
 int main(int argc, char **argv)
 {
+    rh__arg_is_null((RHFlag) { RHARG_NULL });
     Args args_buf = args_init();
 
     // Warning no type checking for var. Could result in unexpected behaviour
     RHFlag sub_args[] = {
-        { "foo", 'f', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help },
+        { "help", 'h', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help, "Show this message and exit"  },
+        { "foo", 'f', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help,  "A boolean" },
         { RHARG_NULL }
     };
 
     // Use null values to denote end
+    // Instead of flags use: [String],
+    // Multiple args: <file>...Required
     RHFlag args[] = {
-        { "help", 'h', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help },
-        { "str",  's', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str  },
-        { "bar",  'b', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str  },
-        { "rec",  'r', RH_ARG_OPTIONAL, NULL,           (void *) &sub_args },
+        { "help", 'h', RH_ARG_OPTIONAL, rh_parser_bool, (void *) &args_buf.help, "Show this message and exit" },
+        { "str",  's', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Enter a string"  },
+        { "bar",  'b', RH_ARG_OPTIONAL, rh_parser_str,  (void *) &args_buf.str,  "Another string"  },
+        { "rec",  0  , RH_ARG_OPTIONAL, NULL,           (void *) &sub_args,      "recursive subcommand" },
         { RHARG_NULL }
     };
 
-    rh_args_parse(argc, argv, args);
-    printf("\n");
+    RHInfo info = rh_info_constructor("Rainbow high like the song, but a program!", "Me", argv[0]);
+
+    rh_args_parse(argc, argv, args, &info);
+    printf("%s\n%s\n", info.usage, info.options);
     printf("Help: %s\n", args_buf.help ? "true" : "false");
     printf(" Str: %s\n", (char *) args_buf.str);
 
