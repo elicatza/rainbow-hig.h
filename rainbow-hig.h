@@ -197,16 +197,15 @@ static inline bool rh__arg_is_short(RHFlag arg)
 
 static size_t rh__arg_len(RHFlag arg)
 {
-    if (rh__arg_is_subcommand(arg)) {
-        return strlen(arg.longarg);
-    }
-
     size_t len = 0;
-    if (arg.shortarg != 0) len += 2;
-    if (rh__arg_is_long(arg)) {
-        size_t longlen = strlen(arg.longarg);
-        if (longlen != 0) len += 2 + longlen;
-        if (arg.shortarg != 0 && longlen != 0) len += 2;
+    if (rh__arg_is_short(arg) && rh__arg_is_long(arg)) len += 2;
+
+    if (rh__arg_is_subcommand(arg)) {
+        if (rh__arg_is_short(arg)) len += 1;
+        if (rh__arg_is_long(arg)) len += strlen(arg.longarg);
+    } else {
+        if (rh__arg_is_short(arg)) len += 2;
+        if (rh__arg_is_long(arg)) len += strlen(arg.longarg) + 2;
     }
 
     return len;
@@ -255,11 +254,10 @@ extern void rh__gen_info_options(RHInfo *info, RHFlag *args)
     char buf[1000];
     size_t i;
     int rv;
-    // if (strcmp(info->options, "") != 0) return;
-    strcpy(info->options, "\x1b[35mOPTIONS:\x1b[0m\n");
 
     int longestopt = rh__arg_len_longest_opt(args);
     if (longestopt != 0) {
+        strcpy(info->options, "\x1b[35mOPTIONS:\x1b[0m\n");
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
             if (rh__arg_is_subcommand(args[i])) continue;
 
