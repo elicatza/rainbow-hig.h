@@ -252,8 +252,8 @@ extern void rh__gen_info_usage(RHInfo *info)
 
 extern void rh__gen_info_option_line(RHFlag arg, int longestopt, char *dest, size_t sz)
 {
-    int optlen = rh__arg_len(arg);
-    size_t buflen = longestopt + 2 * RH_INDENT_SPACES + strlen(arg.hint) + 1 + 10;  // 10 is for color and newline
+    int optlen = rh__arg_len(arg) + 1;
+    size_t buflen = longestopt + 2 * RH_INDENT_SPACES + strlen(arg.hint) + 10 + 1;  // 10 is for color and newline
     RH_ASSERT(sz >= buflen);
 
     char longflag[optlen];
