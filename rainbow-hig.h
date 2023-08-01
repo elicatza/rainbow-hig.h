@@ -107,7 +107,7 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
                         args[i].parse(opt);
                     } // TODO: else error message (invalid flag)
                 }
-                break;
+                continue;
             }
 
             // Long flag
