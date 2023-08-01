@@ -45,7 +45,7 @@ typedef struct {
 } RHInfo;
 
 
-#define RHARG_NULL NULL, 0, 0, NULL, NULL, NULL
+#define RHARG_NULL "", 0, 0, NULL, NULL, ""
 
 static inline bool rh__arg_is_null(RHFlag arg);
 static inline bool rh__arg_is_subcommand(RHFlag arg);
@@ -54,6 +54,8 @@ static inline bool rh__arg_is_short(RHFlag arg);
 static size_t rh__arg_len(RHFlag arg);
 static size_t rh__arg_len_longest_opt(RHFlag *args);
 extern size_t rh__arg_len_longest_sub(RHFlag *args);
+extern void rh__arg_validate(RHFlag *arg);
+extern void rh__args_validate(RHFlag *args);
 
 extern RHInfo rh_info_constructor(char *description, char *author, char *program);
 
@@ -79,9 +81,10 @@ extern void rh_action_help(RHOpt opt);
 // Parse argv
 extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
 {
+    size_t i;
+    rh__args_validate(args);
     rh__gen_info(info, args);
 
-    size_t i;
     char *ip;
     do {
         char *arg = rh_args_shift(&argc, &argv);
@@ -97,6 +100,8 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
             // Short flag
             if (arg[0] == '-' && arg[1] != '-') {
                 if (!rh__arg_is_short(args[i])) continue;
+                if (args[i].parse == NULL) continue;
+
                 for (ip = arg + 1; *ip != '\0'; ++ip) {
                     if (*ip == args[i].shortarg) {
                         args[i].parse(opt);
@@ -108,6 +113,8 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
             // Long flag
             if (arg[0] == '-' && arg[1] == '-') {
                 if (!rh__arg_is_long(args[i])) continue;
+                if (args[i].parse == NULL) continue;
+
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
                     args[i].parse(opt);
                     break;
@@ -162,12 +169,12 @@ extern RHInfo rh_info_constructor(char *description, char *author, char *program
 
 static inline bool rh__arg_is_null(RHFlag arg)
 {
-    if (arg.longarg == NULL &&
+    if (strlen(arg.longarg) == 0 &&
             arg.shortarg == 0 &&
             arg.argtype == 0 &&
             arg.parse == NULL &&
             arg.var == NULL &&
-            arg.hint == NULL) {
+            strlen(arg.hint) == 0) {
         return true;
     }
     return false;
@@ -183,8 +190,7 @@ static inline bool rh__arg_is_subcommand(RHFlag arg)
 
 static inline bool rh__arg_is_long(RHFlag arg)
 {
-    if (arg.longarg == NULL) return false;
-    if (strcmp(arg.longarg, "") == 0) return false;
+    if (strlen(arg.longarg) == 0) return false;
     return true;
 }
 
@@ -240,6 +246,25 @@ extern size_t rh__arg_len_longest_sub(RHFlag *args)
     return max_len;
 }
 
+extern void rh__arg_validate(RHFlag *arg)
+{
+    if (arg->longarg == NULL) arg->longarg = "";
+    if (arg->hint == NULL) arg->hint = "";
+    if (arg->shortarg == 0 && strlen(arg->longarg) == 0) {
+        fprintf(stderr, "ERROR: flags must have either short or long argument defined!\n");
+        fprintf(stderr, "If you wish to allow this, edit: %s:%d\n", __FILE__, __LINE__);
+        exit(1);
+    }
+}
+
+extern void rh__args_validate(RHFlag *args)
+{
+    size_t i;
+    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
+        rh__arg_validate(&args[i]);
+    }
+}
+
 extern void rh__gen_info_usage(RHInfo *info)
 {
     int rv = snprintf(info->usage, 1000,
@@ -252,12 +277,12 @@ extern void rh__gen_info_usage(RHInfo *info)
 
 extern void rh__gen_info_option_line(RHFlag arg, int longestopt, char *dest, size_t sz)
 {
-    int optlen = rh__arg_len(arg) + 1;
+    int optlen = rh__arg_len(arg);
     size_t buflen = longestopt + 2 * RH_INDENT_SPACES + strlen(arg.hint) + 10 + 1;  // 10 is for color and newline
     RH_ASSERT(sz >= buflen);
 
-    char longflag[optlen];
-    snprintf(longflag, optlen, "--%s", arg.longarg);
+    char longflag[optlen + 1];
+    snprintf(longflag, optlen + 1, "--%s", arg.longarg);
     char shortflag[3] = { '-', arg.shortarg, '\0' };
 
     char *seperator = ", ";
@@ -308,7 +333,7 @@ extern void rh__gen_info_options(RHInfo *info, RHFlag *args)
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
             if (!rh__arg_is_subcommand(args[i])) continue;
 
-            rh__gen_info_option_line(args[i], longestopt, buf, 1000);
+            rh__gen_info_option_line(args[i], longestsub, buf, 1000);
             strcat(info->options, buf);
         }
     }
