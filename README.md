@@ -15,11 +15,17 @@ is also the title of a musical theather song.
   - [ ] Usage
   - [X] Options
   - [X] Subcommands
-- [ ] Create man page
+- [ ] Generate mdoc section OPTIONS
+- [ ] Reading stdin: `-`
+- [ ] Terminate options: `--`
+- [ ] Alphabetical ordering
+- [ ] Examples
+- [ ] Support --longarg=<var>
 - [ ] Parsers
     - [X] String
     - [X] Boolean
     - [ ] Increment
+    - [ ] FILE
     - [ ] Float
     - [ ] Double
     - [ ] size_t
@@ -27,12 +33,3 @@ is also the title of a musical theather song.
     - [ ] Char
     - [ ] Hexadecimal
 - [ ] Follow [IEEE](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html)
-
-
-## Var debug
-main.c: ^char
-Pass: ^^val
-opt.var: ^^val
-Pass: ^^val
-Modify: ^val -> ^buf
-opt.var: ^^nval

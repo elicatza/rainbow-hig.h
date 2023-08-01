@@ -11,25 +11,20 @@
 #include <string.h>
 #include <stdbool.h>
 
-typedef enum {
-    RH_ARG_REQUIRED = 1<<1,
-    RH_ARG_OPTIONAL = 1<<2,
-} RHFlagType;
-
 #define RH_INDENT_SPACES 4
 
 typedef struct {
     int *argc;
     char ***argv;
     void **var;
-    unsigned int flag_type;
+    char *flag_type;
     char *optval;
 } RHOpt;
 
 typedef struct {
     char *longarg;
     char shortarg;
-    RHFlagType argtype;
+    char *argtype;
     void (*parse)(RHOpt opt);
     void **var;
     char *hint;
@@ -45,10 +40,13 @@ typedef struct {
 } RHInfo;
 
 
-#define RHARG_NULL "", 0, 0, NULL, NULL, ""
+#define RHARG_NULL "", '\0', "", NULL, NULL, ""
 
 static inline bool rh__arg_is_null(RHFlag arg);
 static inline bool rh__arg_is_subcommand(RHFlag arg);
+// TODO
+// static inline bool rh__arg_is_flag(RHFlag arg);
+// static inline bool rh__arg_is_arg(RHFlag arg);
 static inline bool rh__arg_is_long(RHFlag arg);
 static inline bool rh__arg_is_short(RHFlag arg);
 static size_t rh__arg_len(RHFlag arg);
@@ -134,11 +132,13 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
 
 extern void rh_parser_str(RHOpt opt)
 {
+    if (*opt.var == NULL) return;
     *(char **) opt.var = rh_args_shift(opt.argc, opt.argv);
 }
 
 extern void rh_parser_bool(RHOpt opt)
 {
+    if (opt.var == NULL) return;
     *(bool *) opt.var = true;
 }
 
@@ -171,7 +171,7 @@ static inline bool rh__arg_is_null(RHFlag arg)
 {
     if (strlen(arg.longarg) == 0 &&
             arg.shortarg == 0 &&
-            arg.argtype == 0 &&
+            strlen(arg.argtype) == 0 &&
             arg.parse == NULL &&
             arg.var == NULL &&
             strlen(arg.hint) == 0) {
@@ -182,7 +182,7 @@ static inline bool rh__arg_is_null(RHFlag arg)
 
 static inline bool rh__arg_is_subcommand(RHFlag arg)
 {
-    if (arg.parse == NULL && arg.var != NULL) {
+    if (arg.parse == NULL && arg.var != NULL && strlen(arg.argtype) == 0) {
         return true;
     }
     return false;
@@ -249,6 +249,7 @@ extern size_t rh__arg_len_longest_sub(RHFlag *args)
 extern void rh__arg_validate(RHFlag *arg)
 {
     if (arg->longarg == NULL) arg->longarg = "";
+    if (arg->argtype == NULL) arg->argtype = "";
     if (arg->hint == NULL) arg->hint = "";
     if (arg->shortarg == 0 && strlen(arg->longarg) == 0) {
         fprintf(stderr, "ERROR: flags must have either short or long argument defined!\n");
