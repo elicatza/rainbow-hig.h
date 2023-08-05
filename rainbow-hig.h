@@ -13,6 +13,15 @@
 
 #define RH_INDENT_SPACES 4
 
+#ifndef RHDEF
+#ifdef RH_STATIC
+#define RHDEF static
+#else
+#define RHDEF extern
+#endif
+#endif
+
+
 typedef struct {
     int *argc;
     char ***argv;
@@ -22,16 +31,8 @@ typedef struct {
 } RHOpt;
 
 typedef struct {
-    char *longarg;
-    char shortarg;
-    char *argtype;
-    void (*parse)(RHOpt opt);
-    void **var;
-    char *hint;
-} RHFlag;
-
-typedef struct {
     char *program;
+    char *version;
     char usage[1000];
     char options[1000];
     char *description;
@@ -39,45 +40,249 @@ typedef struct {
     char *author;
 } RHInfo;
 
+typedef struct {
+    char *longarg;
+    char shortarg;
+    char *argtype;
+    void (*parse)(RHOpt opt, RHInfo info);
+    void **var;
+    char *hint;
+} RHArg;
 
 #define RHARG_NULL "", '\0', "", NULL, NULL, ""
+#define RHARG_HELP "help", 'h', "", rh_action_help, NULL, "Prints help message and exit"
+#define RHARG_VERSION "version", 'V', "", rh_action_version, NULL, "Prints version and exit"
 
-static inline bool rh__arg_is_null(RHFlag arg);
-static inline bool rh__arg_is_subcommand(RHFlag arg);
-// TODO
-// static inline bool rh__arg_is_flag(RHFlag arg);
-// static inline bool rh__arg_is_arg(RHFlag arg);
-static inline bool rh__arg_is_long(RHFlag arg);
-static inline bool rh__arg_is_short(RHFlag arg);
-static size_t rh__arg_len(RHFlag arg);
-static size_t rh__arg_len_longest_opt(RHFlag *args);
-extern size_t rh__arg_len_longest_sub(RHFlag *args);
-extern void rh__arg_validate(RHFlag *arg);
-extern void rh__args_validate(RHFlag *args);
+RHDEF char *rh_args_shift(int *argc, char ***argv);
+RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info);
+RHDEF RHInfo rh_info_constructor(char *description, char *author, char *version, char *program);
 
-extern RHInfo rh_info_constructor(char *description, char *author, char *program);
+RHDEF void rh_parser_str(RHOpt opt, RHInfo info);
+RHDEF void rh_parser_bool(RHOpt opt, RHInfo info);
 
-extern void rh__gen_info_usage(RHInfo *info);
-extern void rh__gen_info_options(RHInfo *info, RHFlag *args);
-extern void rh__gen_info_option_line(RHFlag arg, int longestopt, char *dest, size_t sz);
-extern void rh__gen_info(RHInfo *info, RHFlag *args);
+RHDEF void rh_action_help(RHOpt opt, RHInfo info);
+RHDEF void rh_action_version(RHOpt opt, RHInfo info);
 
-extern char *rh_args_shift(int *argc, char ***argv);
-extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info);
+static bool rh__arg_is_null(RHArg arg);
+static bool rh__flag_is_long(RHArg arg);
+static bool rh__flag_is_short(RHArg arg);
 
-extern void rh_parser_str(RHOpt opt);
-extern void rh_parser_bool(RHOpt opt);
+static size_t rh__arg_len(RHArg arg);
+static size_t rh__arg_len_longest_opt(RHArg *args);
+static size_t rh__arg_len_longest_sub(RHArg *args);
+static void rh__arg_validate(RHArg *arg);
+static void rh__args_validate(RHArg *args);
 
-extern void rh_action_help(RHOpt opt);
-
+static void rh__gen_info_usage(RHInfo *info);
+static void rh__gen_info_options(RHInfo *info, RHArg *args);
+static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size_t sz);
+static void rh__gen_info(RHInfo *info, RHArg *args);
 
 #ifdef RH_IMPLEMENTATION
 
-#endif // RH_IMPLEMENTATION
+static bool rh__arg_is_null(RHArg arg)
+{
+    if (strlen(arg.longarg) == 0 &&
+            arg.shortarg == 0 &&
+            strlen(arg.argtype) == 0 &&
+            arg.parse == NULL &&
+            arg.var == NULL &&
+            strlen(arg.hint) == 0) {
+        return true;
+    }
+    return false;
+}
 
-// Populates info help, and usage
-// Parse argv
-extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
+static bool rh__arg_is_sub(RHArg arg)
+{
+    if ((arg.shortarg != 0 || strlen(arg.longarg) != 0) &&
+            arg.parse == NULL &&
+            arg.var != NULL &&
+            strlen(arg.argtype) == 0) {
+        return true;
+    }
+    return false;
+}
+
+static bool rh__arg_is_flag(RHArg arg)
+{
+    if ((arg.shortarg != 0 || strlen(arg.longarg) != 0) &&
+            arg.parse != NULL) {
+        return true;
+    }
+    return false;
+}
+
+static bool rh__arg_is_arg(RHArg arg)
+{
+    if ((arg.shortarg == 0 && strlen(arg.longarg) == 0) &&
+            arg.parse != NULL &&
+            strlen(arg.argtype) != 0) {
+        return true;
+    }
+    return false;
+}
+
+static bool rh__flag_is_long(RHArg arg)
+{
+    if (strlen(arg.longarg) == 0) return false;
+    return true;
+}
+
+static bool rh__flag_is_short(RHArg arg)
+{
+    if (arg.shortarg == 0) {
+        return false;
+    }
+    return true;
+}
+
+static size_t rh__arg_len(RHArg arg)
+{
+    size_t len = 0;
+    if (rh__flag_is_short(arg) && rh__flag_is_long(arg)) len += 2;
+
+    if (rh__arg_is_sub(arg)) {
+        if (rh__flag_is_short(arg)) len += 1;
+        if (rh__flag_is_long(arg)) len += strlen(arg.longarg);
+    } else {
+        if (rh__flag_is_short(arg)) len += 2;
+        if (rh__flag_is_long(arg)) len += strlen(arg.longarg) + 2;
+    }
+
+    return len;
+}
+
+static size_t rh__arg_len_longest_opt(RHArg *args)
+{
+    size_t i;
+    size_t max_len = 0;
+    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
+        if (rh__arg_is_sub(args[i])) continue;
+        size_t tmp_len = rh__arg_len(args[i]);
+        if (tmp_len > max_len) {
+            max_len = tmp_len;
+        }
+    }
+    return max_len;
+}
+
+static size_t rh__arg_len_longest_sub(RHArg *args)
+{
+    size_t i;
+    size_t max_len = 0;
+    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
+        if (!rh__arg_is_sub(args[i])) continue;
+        size_t tmp_len = rh__arg_len(args[i]);
+        if (tmp_len > max_len) {
+            max_len = tmp_len;
+        }
+    }
+    return max_len;
+}
+
+static void rh__arg_validate(RHArg *arg)
+{
+    if (arg->longarg == NULL) arg->longarg = "";
+    if (arg->argtype == NULL) arg->argtype = "";
+    if (arg->hint == NULL) arg->hint = "";
+    if (arg->shortarg == 0 && strlen(arg->longarg) == 0) {
+        fprintf(stderr, "ERROR: flags must have either short or long argument defined!\n");
+        fprintf(stderr, "If you wish to allow this, edit: %s:%d\n", __FILE__, __LINE__);
+        exit(1);
+    }
+}
+
+static void rh__args_validate(RHArg *args)
+{
+    size_t i;
+    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
+        rh__arg_validate(&args[i]);
+    }
+}
+
+static void rh__gen_info_usage(RHInfo *info)
+{
+    int rv = snprintf(info->usage, 1000,
+            "\x1b[35mUSAGE:\x1b[0m\n%*s%s [options]\n",
+            RH_INDENT_SPACES, "",
+            info->program);
+    RH_ASSERT(rv >= 0);
+    RH_ASSERT(rv != 1000);
+}
+
+static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size_t sz)
+{
+    int optlen = rh__arg_len(arg);
+    size_t buflen = longestopt + 2 * RH_INDENT_SPACES + strlen(arg.hint) + 10 + 1;  // 10 is for color and newline
+    RH_ASSERT(sz >= buflen);
+
+    char longflag[optlen + 1];
+    snprintf(longflag, optlen + 1, "--%s", arg.longarg);
+    char shortflag[3] = { '-', arg.shortarg, '\0' };
+
+    char *seperator = ", ";
+    if (rh__arg_is_sub(arg)) {
+        shortflag[0] = arg.shortarg;
+        shortflag[1] = '\0';
+        strncpy(longflag, arg.longarg, optlen);
+    }
+
+    if (rh__flag_is_short(arg) && !rh__flag_is_long(arg)) {
+        longflag[0] = '\0';
+        seperator = "";
+    }
+
+    if (!rh__flag_is_short(arg) && rh__flag_is_long(arg)) {
+        shortflag[0] = '\0';
+        seperator = "";
+    }
+
+    int rv = snprintf(dest, buflen,
+            "%*s\x1b[34m%s%s%s\x1b[0m%*s%s\n",
+            RH_INDENT_SPACES, "",
+            shortflag, seperator, longflag,
+            longestopt - optlen + RH_INDENT_SPACES, "",
+            arg.hint);
+    RH_ASSERT(rv >= 0 && rv != 1000);
+}
+
+static void rh__gen_info_options(RHInfo *info, RHArg *args)
+{
+    char buf[1000];
+    size_t i;
+
+    int longestopt = rh__arg_len_longest_opt(args);
+    if (longestopt != 0) {
+        strcpy(info->options, "\x1b[35mOPTIONS:\x1b[0m\n");
+        for (i = 0; !rh__arg_is_null(args[i]); ++i) {
+            if (rh__arg_is_sub(args[i])) continue;
+
+            rh__gen_info_option_line(args[i], longestopt, buf, 1000);
+            strcat(info->options, buf);
+        }
+    }
+
+    int longestsub = rh__arg_len_longest_sub(args);
+    if (longestsub != 0) {
+        strcat(info->options, "\n\x1b[35mSUBCOMMANDS:\x1b[0m\n");
+        for (i = 0; !rh__arg_is_null(args[i]); ++i) {
+            if (!rh__arg_is_sub(args[i])) continue;
+
+            rh__gen_info_option_line(args[i], longestsub, buf, 1000);
+            strcat(info->options, buf);
+        }
+    }
+
+}
+
+static void rh__gen_info(RHInfo *info, RHArg *args)
+{
+    rh__gen_info_usage(info);
+    rh__gen_info_options(info, args);
+}
+
+RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
 {
     size_t i;
     rh__args_validate(args);
@@ -97,12 +302,12 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
 
             // Short flag
             if (arg[0] == '-' && arg[1] != '-') {
-                if (!rh__arg_is_short(args[i])) continue;
+                if (!rh__flag_is_short(args[i])) continue;
                 if (args[i].parse == NULL) continue;
 
                 for (ip = arg + 1; *ip != '\0'; ++ip) {
                     if (*ip == args[i].shortarg) {
-                        args[i].parse(opt);
+                        args[i].parse(opt, *info);
                     } // TODO: else error message (invalid flag)
                 }
                 continue;
@@ -110,44 +315,55 @@ extern void rh_args_parse(int argc, char **argv, RHFlag *args, RHInfo *info)
 
             // Long flag
             if (arg[0] == '-' && arg[1] == '-') {
-                if (!rh__arg_is_long(args[i])) continue;
+                if (!rh__flag_is_long(args[i])) continue;
                 if (args[i].parse == NULL) continue;
 
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
-                    args[i].parse(opt);
+                    args[i].parse(opt, *info);
                     break;
                 }
                 continue;
             }
 
             // Sub parser
-            if (rh__arg_is_subcommand(args[i])) {
+            if (rh__arg_is_sub(args[i])) {
                 if (!strcmp(arg, args[i].longarg) || (strlen(arg) == 1 && arg[0] == args[i].shortarg)) {
-                    rh_args_parse(argc, argv, (RHFlag*) args[i].var, info);
+                    rh_args_parse(argc, argv, (RHArg*) args[i].var, info);
                 }
             }
         }
     } while (argc > 0);
 }
 
-extern void rh_parser_str(RHOpt opt)
+RHDEF void rh_parser_str(RHOpt opt, RHInfo info)
 {
+    (void) info;
     if (*opt.var == NULL) return;
     *(char **) opt.var = rh_args_shift(opt.argc, opt.argv);
 }
 
-extern void rh_parser_bool(RHOpt opt)
+RHDEF void rh_parser_bool(RHOpt opt, RHInfo info)
 {
+    (void) info;
     if (opt.var == NULL) return;
     *(bool *) opt.var = true;
 }
 
-extern void rh_action_help(RHOpt opt)
+RHDEF void rh_action_help(RHOpt opt, RHInfo info)
 {
     (void) opt;
+    printf("%s\n%s", info.usage, info.options);
+    exit(0);
 }
 
-extern char *rh_args_shift(int *argc, char ***argv)
+RHDEF void rh_action_version(RHOpt opt, RHInfo info)
+{
+    (void) opt;
+    printf("%s %s\n", info.program, info.version);
+    exit(0);
+}
+
+RHDEF char *rh_args_shift(int *argc, char ***argv)
 {
     RH_ASSERT(*argc > 0);
     char *rt = **argv;
@@ -156,196 +372,18 @@ extern char *rh_args_shift(int *argc, char ***argv)
     return rt;
 }
 
-extern RHInfo rh_info_constructor(char *description, char *author, char *program)
+RHDEF RHInfo rh_info_constructor(char *description, char *author, char *version, char *program)
 {
     return (RHInfo) {
-        .description = description,
         .author = author,
+        .description = description,
         .options = "",
         .program = program,
         .usage = "",
+        .version = version,
     };
 }
 
-static inline bool rh__arg_is_null(RHFlag arg)
-{
-    if (strlen(arg.longarg) == 0 &&
-            arg.shortarg == 0 &&
-            strlen(arg.argtype) == 0 &&
-            arg.parse == NULL &&
-            arg.var == NULL &&
-            strlen(arg.hint) == 0) {
-        return true;
-    }
-    return false;
-}
 
-static inline bool rh__arg_is_subcommand(RHFlag arg)
-{
-    if (arg.parse == NULL && arg.var != NULL && strlen(arg.argtype) == 0) {
-        return true;
-    }
-    return false;
-}
-
-static inline bool rh__arg_is_long(RHFlag arg)
-{
-    if (strlen(arg.longarg) == 0) return false;
-    return true;
-}
-
-static inline bool rh__arg_is_short(RHFlag arg)
-{
-    if (arg.shortarg == 0) {
-        return false;
-    }
-    return true;
-}
-
-static size_t rh__arg_len(RHFlag arg)
-{
-    size_t len = 0;
-    if (rh__arg_is_short(arg) && rh__arg_is_long(arg)) len += 2;
-
-    if (rh__arg_is_subcommand(arg)) {
-        if (rh__arg_is_short(arg)) len += 1;
-        if (rh__arg_is_long(arg)) len += strlen(arg.longarg);
-    } else {
-        if (rh__arg_is_short(arg)) len += 2;
-        if (rh__arg_is_long(arg)) len += strlen(arg.longarg) + 2;
-    }
-
-    return len;
-}
-
-extern size_t rh__arg_len_longest_opt(RHFlag *args)
-{
-    size_t i;
-    size_t max_len = 0;
-    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-        if (rh__arg_is_subcommand(args[i])) continue;
-        size_t tmp_len = rh__arg_len(args[i]);
-        if (tmp_len > max_len) {
-            max_len = tmp_len;
-        }
-    }
-    return max_len;
-}
-
-extern size_t rh__arg_len_longest_sub(RHFlag *args)
-{
-    size_t i;
-    size_t max_len = 0;
-    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-        if (!rh__arg_is_subcommand(args[i])) continue;
-        size_t tmp_len = rh__arg_len(args[i]);
-        if (tmp_len > max_len) {
-            max_len = tmp_len;
-        }
-    }
-    return max_len;
-}
-
-extern void rh__arg_validate(RHFlag *arg)
-{
-    if (arg->longarg == NULL) arg->longarg = "";
-    if (arg->argtype == NULL) arg->argtype = "";
-    if (arg->hint == NULL) arg->hint = "";
-    if (arg->shortarg == 0 && strlen(arg->longarg) == 0) {
-        fprintf(stderr, "ERROR: flags must have either short or long argument defined!\n");
-        fprintf(stderr, "If you wish to allow this, edit: %s:%d\n", __FILE__, __LINE__);
-        exit(1);
-    }
-}
-
-extern void rh__args_validate(RHFlag *args)
-{
-    size_t i;
-    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-        rh__arg_validate(&args[i]);
-    }
-}
-
-extern void rh__gen_info_usage(RHInfo *info)
-{
-    int rv = snprintf(info->usage, 1000,
-            "\x1b[35mUSAGE:\x1b[0m\n%*s%s [options]\n",
-            RH_INDENT_SPACES, "",
-            info->program);
-    RH_ASSERT(rv >= 0);
-    RH_ASSERT(rv != 1000);
-}
-
-extern void rh__gen_info_option_line(RHFlag arg, int longestopt, char *dest, size_t sz)
-{
-    int optlen = rh__arg_len(arg);
-    size_t buflen = longestopt + 2 * RH_INDENT_SPACES + strlen(arg.hint) + 10 + 1;  // 10 is for color and newline
-    RH_ASSERT(sz >= buflen);
-
-    char longflag[optlen + 1];
-    snprintf(longflag, optlen + 1, "--%s", arg.longarg);
-    char shortflag[3] = { '-', arg.shortarg, '\0' };
-
-    char *seperator = ", ";
-    if (rh__arg_is_subcommand(arg)) {
-        shortflag[0] = arg.shortarg;
-        shortflag[1] = '\0';
-        strncpy(longflag, arg.longarg, optlen);
-    }
-
-    if (rh__arg_is_short(arg) && !rh__arg_is_long(arg)) {
-        longflag[0] = '\0';
-        seperator = "";
-    }
-
-    if (!rh__arg_is_short(arg) && rh__arg_is_long(arg)) {
-        shortflag[0] = '\0';
-        seperator = "";
-    }
-
-    int rv = snprintf(dest, buflen,
-            "%*s\x1b[34m%s%s%s\x1b[0m%*s%s\n",
-            RH_INDENT_SPACES, "",
-            shortflag, seperator, longflag,
-            longestopt - optlen + RH_INDENT_SPACES, "",
-            arg.hint);
-    RH_ASSERT(rv >= 0 && rv != 1000);
-}
-
-extern void rh__gen_info_options(RHInfo *info, RHFlag *args)
-{
-    char buf[1000];
-    size_t i;
-
-    int longestopt = rh__arg_len_longest_opt(args);
-    if (longestopt != 0) {
-        strcpy(info->options, "\x1b[35mOPTIONS:\x1b[0m\n");
-        for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-            if (rh__arg_is_subcommand(args[i])) continue;
-
-            rh__gen_info_option_line(args[i], longestopt, buf, 1000);
-            strcat(info->options, buf);
-        }
-    }
-
-    int longestsub = rh__arg_len_longest_sub(args);
-    if (longestsub != 0) {
-        strcat(info->options, "\n\x1b[35mSUBCOMMANDS:\x1b[0m\n");
-        for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-            if (!rh__arg_is_subcommand(args[i])) continue;
-
-            rh__gen_info_option_line(args[i], longestsub, buf, 1000);
-            strcat(info->options, buf);
-        }
-    }
-
-}
-extern void rh__gen_info(RHInfo *info, RHFlag *args)
-{
-    rh__gen_info_usage(info);
-    // (void) args;
-    rh__gen_info_options(info, args);
-}
-
-
+#endif // RH_IMPLEMENTATION
 #endif // RH_H

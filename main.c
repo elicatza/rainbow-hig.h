@@ -21,11 +21,11 @@ Args args_init(void)
 
 int main(int argc, char **argv)
 {
-    rh__arg_is_null((RHFlag) { RHARG_NULL });
+    rh__arg_is_null((RHArg) { RHARG_NULL });
     Args args_buf = args_init();
 
     // Warning no type checking for var. Could result in unexpected behaviour
-    RHFlag sub_args[] = {
+    RHArg sub_args[] = {
         { "help", 'h', "", rh_parser_bool, (void *) &args_buf.help, "Show this message and exit"  },
         { "foo",  'f', "", rh_parser_bool, (void *) &args_buf.help, "A boolean" },
         { RHARG_NULL }
@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     // Use null values to denote end
     // Instead of flags use: [String],
     // Multiple args: <file>...Required
-    RHFlag args[] = {
+    RHArg args[] = {
         { "help",     'h', "",          rh_parser_bool, (void *) &args_buf.help, "Show this message and exit" },
         { "str",      's', "[NAME]",    rh_parser_str,  (void *) &args_buf.str,  "Enter a string"  },
         { "bar",       0,  "[FILE...]", rh_parser_str,  (void *) &args_buf.str,  "Another string"  },
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
         { RHARG_NULL }
     };
 
-    RHInfo info = rh_info_constructor("Rainbow high like the song, but a program!", "Me", argv[0]);
+    RHInfo info = rh_info_constructor("Rainbow high like the song, but a program!", "0.1.0", "Me", argv[0]);
 
     rh_args_parse(argc, argv, args, &info);
     printf("%s\n%s\n", info.usage, info.options);
