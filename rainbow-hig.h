@@ -143,26 +143,12 @@ static size_t rh__arg_len(RHArg arg)
     return len;
 }
 
-static size_t rh__arg_len_longest_opt(RHArg *args)
+static size_t rh__arg_len_longest(RHArg *args, bool (*condition)(RHArg arg))
 {
     size_t i;
     size_t max_len = 0;
     for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-        if (rh__arg_is_sub(args[i])) continue;
-        size_t tmp_len = rh__arg_len(args[i]);
-        if (tmp_len > max_len) {
-            max_len = tmp_len;
-        }
-    }
-    return max_len;
-}
-
-static size_t rh__arg_len_longest_sub(RHArg *args)
-{
-    size_t i;
-    size_t max_len = 0;
-    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-        if (!rh__arg_is_sub(args[i])) continue;
+        if (!condition(args[i])) continue;
         size_t tmp_len = rh__arg_len(args[i]);
         if (tmp_len > max_len) {
             max_len = tmp_len;
@@ -248,7 +234,7 @@ static void rh__gen_info_options(RHInfo *info, RHArg *args)
     char buf[1000];
     size_t i;
 
-    int longestopt = rh__arg_len_longest_opt(args);
+    int longestopt = rh__arg_len_longest(args, rh__arg_is_flag);
     if (longestopt != 0) {
         strcpy(info->options, "\x1b[35mOPTIONS:\x1b[0m\n");
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
@@ -259,7 +245,7 @@ static void rh__gen_info_options(RHInfo *info, RHArg *args)
         }
     }
 
-    int longestsub = rh__arg_len_longest_sub(args);
+    int longestsub = rh__arg_len_longest(args, rh__arg_is_sub);
     if (longestsub != 0) {
         strcat(info->options, "\n\x1b[35mSUBCOMMANDS:\x1b[0m\n");
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
