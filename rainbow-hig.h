@@ -135,6 +135,11 @@ static size_t rh__arg_len(RHArg arg)
         if (rh__flag_is_long(arg)) len += strlen(arg.longarg) + 2;
     }
 
+    if (strlen(arg.argtype) != 0) {
+        len += 3;
+        len += strlen(arg.argtype);
+    }
+
     return len;
 }
 
@@ -195,13 +200,21 @@ static void rh__gen_info_usage(RHInfo *info)
 
 static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size_t sz)
 {
+    RH_ASSERT(!rh__arg_is_arg(arg));
     int optlen = rh__arg_len(arg);
-    size_t buflen = longestopt + 2 * RH_INDENT + strlen(arg.hint) + 10 + 1;  // 10 is for color and newline
+    size_t buflen = longestopt + 2 * RH_INDENT + strlen(arg.hint) + 2;  // 10 is for color and newline
     RH_ASSERT(sz >= buflen);
 
     char longflag[optlen + 1];
     snprintf(longflag, optlen + 1, "--%s", arg.longarg);
     char shortflag[3] = { '-', arg.shortarg, '\0' };
+
+    size_t placeholder_len = strlen(arg.argtype) + 3;
+    char placeholder[placeholder_len];
+    placeholder[0] = '\0';
+    if (strlen(arg.argtype) != 0) {
+        snprintf(placeholder, placeholder_len + 1, " <%s>", arg.argtype);
+    }
 
     char *seperator = ", ";
     if (rh__arg_is_sub(arg)) {
@@ -221,9 +234,10 @@ static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size
     }
 
     int rv = snprintf(dest, buflen,
-            "%*s\x1b[34m%s%s%s\x1b[0m%*s%s\n",
+            "%*s%s%s%s%s%*s%s\n",
             RH_INDENT, "",
             shortflag, seperator, longflag,
+            placeholder,
             longestopt - optlen + RH_INDENT, "",
             arg.hint);
     RH_ASSERT(rv >= 0 && rv != 1000);
@@ -238,7 +252,7 @@ static void rh__gen_info_options(RHInfo *info, RHArg *args)
     if (longestopt != 0) {
         strcpy(info->options, "\x1b[35mOPTIONS:\x1b[0m\n");
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-            if (rh__arg_is_sub(args[i])) continue;
+            if (!rh__arg_is_flag(args[i])) continue;
 
             rh__gen_info_option_line(args[i], longestopt, buf, 1000);
             strcat(info->options, buf);
