@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define RH_INDENT_SPACES 4
+#define RH_INDENT 4
 
 #ifndef RHDEF
 #ifdef RH_STATIC
@@ -62,21 +62,6 @@ RHDEF void rh_parser_bool(RHOpt opt, RHInfo info);
 
 RHDEF void rh_action_help(RHOpt opt, RHInfo info);
 RHDEF void rh_action_version(RHOpt opt, RHInfo info);
-
-static bool rh__arg_is_null(RHArg arg);
-static bool rh__flag_is_long(RHArg arg);
-static bool rh__flag_is_short(RHArg arg);
-
-static size_t rh__arg_len(RHArg arg);
-static size_t rh__arg_len_longest_opt(RHArg *args);
-static size_t rh__arg_len_longest_sub(RHArg *args);
-static void rh__arg_validate(RHArg *arg);
-static void rh__args_validate(RHArg *args);
-
-static void rh__gen_info_usage(RHInfo *info);
-static void rh__gen_info_options(RHInfo *info, RHArg *args);
-static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size_t sz);
-static void rh__gen_info(RHInfo *info, RHArg *args);
 
 #ifdef RH_IMPLEMENTATION
 
@@ -181,23 +166,20 @@ static size_t rh__arg_len_longest_sub(RHArg *args)
     return max_len;
 }
 
-static void rh__arg_validate(RHArg *arg)
-{
-    if (arg->longarg == NULL) arg->longarg = "";
-    if (arg->argtype == NULL) arg->argtype = "";
-    if (arg->hint == NULL) arg->hint = "";
-    if (arg->shortarg == 0 && strlen(arg->longarg) == 0) {
-        fprintf(stderr, "ERROR: flags must have either short or long argument defined!\n");
-        fprintf(stderr, "If you wish to allow this, edit: %s:%d\n", __FILE__, __LINE__);
-        exit(1);
-    }
-}
-
 static void rh__args_validate(RHArg *args)
 {
+    static unsigned call_counter;
+    ++call_counter;
     size_t i;
     for (i = 0; !rh__arg_is_null(args[i]); ++i) {
-        rh__arg_validate(&args[i]);
+        if (args[i].longarg == NULL) args[i].longarg = "";
+        if (args[i].argtype == NULL) args[i].argtype = "";
+        if (args[i].hint == NULL) args[i].hint = "";
+        if (!rh__arg_is_arg(args[i]) && !rh__arg_is_flag(args[i]) && !rh__arg_is_sub(args[i])) {
+            fprintf(stderr, "RH_ERROR: Could not classify argarray %d at row %zu\n", call_counter, i + 1);
+            fprintf(stderr, "Please supply more fields to resolve this error.\n");
+            exit(1);
+        }
     }
 }
 
@@ -205,7 +187,7 @@ static void rh__gen_info_usage(RHInfo *info)
 {
     int rv = snprintf(info->usage, 1000,
             "\x1b[35mUSAGE:\x1b[0m\n%*s%s [options]\n",
-            RH_INDENT_SPACES, "",
+            RH_INDENT, "",
             info->program);
     RH_ASSERT(rv >= 0);
     RH_ASSERT(rv != 1000);
@@ -214,7 +196,7 @@ static void rh__gen_info_usage(RHInfo *info)
 static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size_t sz)
 {
     int optlen = rh__arg_len(arg);
-    size_t buflen = longestopt + 2 * RH_INDENT_SPACES + strlen(arg.hint) + 10 + 1;  // 10 is for color and newline
+    size_t buflen = longestopt + 2 * RH_INDENT + strlen(arg.hint) + 10 + 1;  // 10 is for color and newline
     RH_ASSERT(sz >= buflen);
 
     char longflag[optlen + 1];
@@ -240,9 +222,9 @@ static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size
 
     int rv = snprintf(dest, buflen,
             "%*s\x1b[34m%s%s%s\x1b[0m%*s%s\n",
-            RH_INDENT_SPACES, "",
+            RH_INDENT, "",
             shortflag, seperator, longflag,
-            longestopt - optlen + RH_INDENT_SPACES, "",
+            longestopt - optlen + RH_INDENT, "",
             arg.hint);
     RH_ASSERT(rv >= 0 && rv != 1000);
 }
