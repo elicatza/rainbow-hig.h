@@ -6,11 +6,6 @@
 #define RH_ASSERT(s) assert(s)
 #endif // RH_ASSERT
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-
 #define RH_INDENT 4
 
 #ifndef RHDEF
@@ -64,6 +59,11 @@ RHDEF void rh_action_help(RHOpt opt, RHInfo info);
 RHDEF void rh_action_version(RHOpt opt, RHInfo info);
 
 #ifdef RH_IMPLEMENTATION
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static bool rh__arg_is_null(RHArg arg)
 {
