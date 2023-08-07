@@ -21,13 +21,14 @@ is also the title of a musical theather song.
   - [X] Subcommands
   - [X] Flags
   - [X] Arguments
+- [ ] Errors
 - [X] Help page
 - [ ] Generate mdoc section OPTIONS
 - [ ] Reading stdin: `-`
 - [ ] Terminate options: `--`
 - [ ] Examples
   - [ ] git
-  - [ ] cat
+  - [X] date
 - [ ] Support --longarg=<var>
 - [ ] Parsers
     - [X] String
