@@ -339,6 +339,10 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
                     rh_args_parse(argc, argv, (RHArg*) args[i].var, info);
                 }
             }
+
+            if (rh__arg_is_arg(args[i])) {
+                args[i].parse(opt, *info);
+            }
         }
     } while (argc > 0);
 }
@@ -391,7 +395,6 @@ RHDEF RHInfo rh_info_constructor(char *description, char *author, char *version,
         .version = version,
     };
 }
-
 
 #endif // RH_IMPLEMENTATION
 #endif // RH_H
