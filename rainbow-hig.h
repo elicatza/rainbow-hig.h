@@ -174,13 +174,39 @@ static void rh__args_validate(RHArg *args)
     }
 }
 
-static void rh__gen_info_usage(RHInfo *info)
+// TODO: check if words should be plural. i.e. option(s)
+static void rh__gen_info_usage(RHInfo *info, RHArg *args)
 {
+    size_t i;
+    char argbuf[256] = { '\0' };
+
+    bool has_sub = false, has_flag = false;
+    for (i = 0; !rh__arg_is_null(args[i]); ++i) {
+        if (rh__arg_is_sub(args[i])) has_sub = true;
+        if (rh__arg_is_flag(args[i])) has_flag = true;
+        if (!rh__arg_is_arg(args[i])) continue;
+        strcat(argbuf, " ");
+        strcat(argbuf, args[i].argtype);
+    }
+
+    char *options;
+    if (has_flag) options = " [options]";
+    else options = "";
+
+    char *subs;
+    if (has_sub) subs = " [subcommand]";
+    else subs = "";
+
+
     int rv = snprintf(info->usage, 1000,
-            "\x1b[35mUSAGE:\x1b[0m\n%*s%s [options]\n",
+            "\x1b[35mUSAGE:\x1b[0m\n%*s%s%s%s%s\n",
             RH_INDENT, "",
-            info->program);
-    RH_ASSERT(rv >= 0);
+            info->program,
+            subs,
+            options,
+            argbuf);
+
+    RH_ASSERT(rv >= 0 && rv != 1000);
     RH_ASSERT(rv != 1000);
 }
 
@@ -219,7 +245,7 @@ static void rh__gen_info_option_line(RHArg arg, int longestopt, char *dest, size
         seperator = "";
     }
 
-    int rv = snprintf(dest, buflen,
+    int rv = snprintf(dest, 1000,
             "%*s%s%s%s%s%*s%s\n",
             RH_INDENT, "",
             shortflag, seperator, longflag,
@@ -260,7 +286,7 @@ static void rh__gen_info_options(RHInfo *info, RHArg *args)
 
 static void rh__gen_info(RHInfo *info, RHArg *args)
 {
-    rh__gen_info_usage(info);
+    rh__gen_info_usage(info, args);
     rh__gen_info_options(info, args);
 }
 

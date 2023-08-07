@@ -10,6 +10,7 @@ parsers written in c, but none apealing to the man lovers.
 - Generate help
 - Generate mdoc
 - One file
+- Simple interface
 
 ## Naming
 Rainbow High is a song from Evita. I could not find a better name that
@@ -17,17 +18,16 @@ is also the title of a musical theather song.
 
 ## Roadmap
 - [X] Basic functionality
-- [ ] Create help page
-  - [ ] Usage
-  - [X] Options
   - [X] Subcommands
-- [ ] Generate mdoc section OPTIONS
+  - [X] Flags
+  - [X] Arguments
+- [X] Help page
 - [ ] Generate mdoc section OPTIONS
 - [ ] Reading stdin: `-`
 - [ ] Terminate options: `--`
-- [ ] Alphabetical ordering
 - [ ] Examples
-- [ ] Hint wrapping
+  - [ ] git
+  - [ ] cat
 - [ ] Support --longarg=<var>
 - [ ] Parsers
     - [X] String
@@ -39,6 +39,6 @@ is also the title of a musical theather song.
     - [ ] size_t
     - [ ] Integers
     - [ ] Char
-    - [ ] Hexadecimal
+- [ ] Required arguments
 - [ ] Follow [IEEE](https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap12.html)
-- [ ] [No color](https://bixense.com/clicolors/)
+- [ ] Comply with [No color](https://bixense.com/clicolors/)
