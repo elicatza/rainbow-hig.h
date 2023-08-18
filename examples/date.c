@@ -22,10 +22,10 @@ int main(int argc, char **argv)
     RHArg args[] = {
         { RHARG_HELP },
         { RHARG_VERSION },
-        { "date", 'd', "STRING", rh_parser_str,   (void *) &myargs.date,     "Display time described by STRING"  },
-        { "utc",  'u', "", rh_parser_bool,        (void *) &myargs.utc,      "Use Coordinated Universal Time (UTC)"  },
-        { "file", 'f', "DATEFILE", rh_parser_str, (void *) &myargs.datefile, "File containing rows of date strings"  },
-        { "",     0,   "[FORMAT]", rh_parser_str, (void *) &myargs.format,   "" },
+        { RHARG_FLAG("date", 'd', "STRING", rh_parser_str, myargs.date, "Display time described by STRING" ) },
+        { RHARG_FLAG("utc", 'u', "", rh_parser_bool, myargs.utc, "Use Coordinated Universal Time (UTC)") },
+        { RHARG_FLAG("file", 'f', "DATEFILE", rh_parser_str, myargs.datefile, "File containing rows of date strings") },
+        { RHARG_ARG("[FORMAT]", rh_parser_str, myargs.format) },
         { RHARG_NULL },
     };
 

@@ -37,9 +37,11 @@ void action_list(RHOpt opt, RHInfo info);
 int main(int argc, char **argv)
 {
     char *bin = "";
+    unsigned int num = 0;
     RHArg subcomand_build[] = {
         { RHARG_HELP },
         { "bin", 0, "NAME", rh_parser_str, (void *) &bin, "Build specified binary" },
+        { "num", 'n', "UINT", rh_parser_uint, (void *) &num, "Build specified binary" },
         { RHARG_NULL }
     };
 
@@ -47,7 +49,7 @@ int main(int argc, char **argv)
         { RHARG_HELP },
         { RHARG_VERSION },
         { "list", 0, "", action_list, NULL, "List musicals" },
-        { "", 0, "[FILE]...", action_list, NULL, "Files" },
+        // { "", 0, "[FILE]...", action_list, NULL, "Files" },
         { "build", 0, "", NULL, (void *) &subcomand_build, "List musicals" },
         { RHARG_NULL }
     };
@@ -56,6 +58,7 @@ int main(int argc, char **argv)
     rh_args_parse(argc, argv, args, &info);
 
     if (strlen(bin) != 0) printf("Building binary: %s...\n", bin);
+    printf("num: %u\n", num);
 }
 
 void action_list(RHOpt opt, RHInfo info)

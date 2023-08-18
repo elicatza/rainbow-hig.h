@@ -22,7 +22,6 @@ typedef struct {
     char ***argv;
     void **var;
     char *flag_type;
-    char *optval;
 } RHOpt;
 
 typedef struct {
@@ -48,12 +47,21 @@ typedef struct {
 #define RHARG_HELP "help", 'h', "", rh_action_help, NULL, "Prints help message and exit"
 #define RHARG_VERSION "version", 'V', "", rh_action_version, NULL, "Prints version and exit"
 
+// TODO: Make functions?
+#define RHARG_FLAG(longarg, shortarg, typehint, parser, var, hint) (longarg), (shortarg), (typehint), (parser), (void *) &(var), (hint)
+#define RHARG_SUB(longarg, shortarg, subcmd, hint) (longarg), (shortarg), "", NULL, (void *) &(subcmd), (hint)
+#define RHARG_ARG(typehint, parser, var) "", 0, (typehint), (parser), (void *) &(var), ""
+
 RHDEF char *rh_args_shift(int *argc, char ***argv);
+
+// TODO: Make static?
+RHDEF char *rh_args_backshift(int *argc, char ***argv);
 RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info);
 RHDEF RHInfo rh_info_constructor(char *description, char *author, char *version, char *program);
 
 RHDEF void rh_parser_str(RHOpt opt, RHInfo info);
 RHDEF void rh_parser_bool(RHOpt opt, RHInfo info);
+RHDEF void rh_parser_uint(RHOpt opt, RHInfo info);
 
 RHDEF void rh_action_help(RHOpt opt, RHInfo info);
 RHDEF void rh_action_version(RHOpt opt, RHInfo info);
@@ -102,7 +110,8 @@ static bool rh__arg_is_arg(RHArg arg)
 {
     if ((arg.shortarg == 0 && strlen(arg.longarg) == 0) &&
             arg.parse != NULL &&
-            strlen(arg.argtype) != 0) {
+            strlen(arg.argtype) != 0 &&
+            strlen(arg.hint) == 0) {
         return true;
     }
     return false;
@@ -299,11 +308,11 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
     char *ip;
     do {
         char *arg = rh_args_shift(&argc, &argv);
+        bool is_valid = false;
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
             RHOpt opt = {
                 .argc = &argc,
                 .argv = &argv,
-                .optval = arg,
                 .flag_type = args[i].argtype,
                 .var = args[i].var,
             };
@@ -328,6 +337,7 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
 
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
                     args[i].parse(opt, *info);
+                    is_valid = true;
                     break;
                 }
                 continue;
@@ -335,14 +345,28 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
 
             // Sub parser
             if (rh__arg_is_sub(args[i])) {
-                if (!strcmp(arg, args[i].longarg) || (strlen(arg) == 1 && arg[0] == args[i].shortarg)) {
+                if (strcmp(arg, args[i].longarg) == 0 || (strlen(arg) == 1 && arg[0] == args[i].shortarg)) {
                     rh_args_parse(argc, argv, (RHArg*) args[i].var, info);
+                    is_valid = true;
+                    break;
                 }
             }
 
             if (rh__arg_is_arg(args[i])) {
+                printf("argv: %s\n", *argv);
+                printf("backshift: %s\n", rh_args_backshift(opt.argc, opt.argv));
                 args[i].parse(opt, *info);
+                args[i].shortarg += 1;
+                is_valid = true;
+                break;
             }
+
+            // No vaild pattern found error
+            // exit(1);
+        }
+        if (!is_valid) {
+            fprintf(stderr, "ERROR: Invalid pattern\n");
+            // exit(1);
         }
     } while (argc > 0);
 }
@@ -359,6 +383,22 @@ RHDEF void rh_parser_bool(RHOpt opt, RHInfo info)
     (void) info;
     if (opt.var == NULL) return;
     *(bool *) opt.var = true;
+}
+
+RHDEF void rh_parser_uint(RHOpt opt, RHInfo info)
+{
+    (void) info;
+    if (opt.var == NULL) return;
+    char *val = rh_args_shift(opt.argc, opt.argv);
+    char *ptr;
+    for (ptr = val; *ptr != '\0'; ++ptr) {
+        if (!(*ptr >= '0' && *ptr <= '9')) {
+            // TODO: Throw error
+            *(unsigned int *) opt.var = 0L;
+            return;
+        }
+    }
+    *(unsigned int *) opt.var = strtoul(val, '\0', 10);
 }
 
 RHDEF void rh_action_help(RHOpt opt, RHInfo info)
@@ -381,6 +421,15 @@ RHDEF char *rh_args_shift(int *argc, char ***argv)
     char *rt = **argv;
     *argc -= 1;
     *argv += 1;
+    return rt;
+}
+
+RHDEF char *rh_args_backshift(int *argc, char ***argv)
+{
+    char *rt = **argv;
+    *argc += 1;
+    *argv -= 1;
+    printf("rt: %s\n", rt);
     return rt;
 }
 
