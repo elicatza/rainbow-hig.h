@@ -37,7 +37,7 @@ is also the title of a musical theather song.
     - [ ] FILE
     - [ ] Float
     - [ ] Double
-    - [ ] size_t
+    - [X] uint
     - [ ] Integers
     - [ ] Char
 - [ ] Required arguments
