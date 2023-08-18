@@ -308,7 +308,6 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
     char *ip;
     do {
         char *arg = rh_args_shift(&argc, &argv);
-        bool is_valid = false;
         for (i = 0; !rh__arg_is_null(args[i]); ++i) {
             RHOpt opt = {
                 .argc = &argc,
@@ -337,7 +336,6 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
 
                 if (strcmp(arg + 2, args[i].longarg) == 0) {
                     args[i].parse(opt, *info);
-                    is_valid = true;
                     break;
                 }
                 continue;
@@ -347,7 +345,6 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
             if (rh__arg_is_sub(args[i])) {
                 if (strcmp(arg, args[i].longarg) == 0 || (strlen(arg) == 1 && arg[0] == args[i].shortarg)) {
                     rh_args_parse(argc, argv, (RHArg*) args[i].var, info);
-                    is_valid = true;
                     break;
                 }
             }
@@ -357,16 +354,8 @@ RHDEF void rh_args_parse(int argc, char **argv, RHArg *args, RHInfo *info)
                 printf("backshift: %s\n", rh_args_backshift(opt.argc, opt.argv));
                 args[i].parse(opt, *info);
                 args[i].shortarg += 1;
-                is_valid = true;
                 break;
             }
-
-            // No vaild pattern found error
-            // exit(1);
-        }
-        if (!is_valid) {
-            fprintf(stderr, "ERROR: Invalid pattern\n");
-            // exit(1);
         }
     } while (argc > 0);
 }
